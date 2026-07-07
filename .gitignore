@@ -1,0 +1,28 @@
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local logs and temporary files
+logs/
+*.log
+*.tmp
+*.bak
+
+# Dependency and build folders, kept out even though this project is static
+node_modules/
+dist/
+build/
+.cache/
+playwright-report/
+
+# Local secrets
+.env
+.env.*
+*.pem
+*.key
+id_rsa*
+*token*
+*credential*
+*secret*

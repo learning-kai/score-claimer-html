@@ -1,0 +1,1764 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>积分领取工具</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231d65d8'/%3E%3Ctext x='32' y='42' text-anchor='middle' font-size='34' font-family='Arial,sans-serif' fill='white'%3E积%3C/text%3E%3C/svg%3E">
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --panel-soft: #f9fbff;
+      --text: #172033;
+      --muted: #667085;
+      --border: #d9e0ea;
+      --primary: #1d65d8;
+      --primary-dark: #164ca1;
+      --ok: #168a4a;
+      --warn: #c26b00;
+      --danger: #c93b35;
+      --shadow: 0 18px 48px rgba(23, 32, 51, 0.10);
+      font-family: Inter, "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      border-radius: 8px;
+      background: var(--primary);
+      color: #fff;
+      cursor: pointer;
+      font-weight: 700;
+      min-height: 42px;
+      padding: 0 18px;
+      transition: background .16s ease, opacity .16s ease, transform .16s ease;
+      white-space: nowrap;
+    }
+
+    button:hover:not(:disabled) {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: .55;
+      transform: none;
+    }
+
+    button.secondary {
+      background: #eef3fb;
+      color: var(--text);
+    }
+
+    button.secondary:hover:not(:disabled) {
+      background: #e2ebf8;
+    }
+
+    button.danger {
+      background: #ffeceb;
+      color: var(--danger);
+    }
+
+    button.danger:hover:not(:disabled) {
+      background: #ffd9d6;
+    }
+
+    input {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--text);
+      outline: none;
+      padding: 0 12px;
+    }
+
+    input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(29, 101, 216, .12);
+    }
+
+    label {
+      display: grid;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    pre,
+    code {
+      font-family: "Cascadia Mono", Consolas, monospace;
+    }
+
+    .shell {
+      width: min(1120px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 40px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: clamp(24px, 4vw, 34px);
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    .brand p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .status-card,
+    .panel {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .status-card {
+      min-width: min(360px, 100%);
+      padding: 16px;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 5px 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .status-row strong {
+      color: var(--text);
+      font-size: 15px;
+      text-align: right;
+      word-break: break-all;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);
+      gap: 18px;
+    }
+
+    .panel {
+      overflow: hidden;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--border);
+      padding: 16px 18px;
+    }
+
+    .panel-head h2 {
+      margin: 0;
+      font-size: 17px;
+      letter-spacing: 0;
+    }
+
+    .auth-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 16px 0;
+    }
+
+    .auth-actions button {
+      flex: 1 1 auto;
+      padding: 0 12px;
+    }
+
+    .panel-body {
+      padding: 18px;
+    }
+
+    .form {
+      display: grid;
+      gap: 14px;
+    }
+
+    .captcha-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 118px;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .captcha-box {
+      display: grid;
+      gap: 7px;
+    }
+
+    .captcha-image {
+      width: 118px;
+      height: 42px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #eef3fb;
+      color: var(--muted);
+      cursor: pointer;
+      display: grid;
+      font-size: 12px;
+      font-weight: 700;
+      object-fit: fill;
+      place-items: center;
+    }
+
+    .sms-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 132px;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .actions button {
+      flex: 1 1 auto;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .token-box {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .token-line {
+      display: grid;
+      gap: 5px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--panel-soft);
+      padding: 10px;
+    }
+
+    .token-line span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .token-line code {
+      color: var(--text);
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .tools {
+      display: grid;
+      gap: 12px;
+    }
+
+    .delay-row {
+      display: grid;
+      grid-template-columns: 1fr 112px;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .mission-list {
+      display: grid;
+      gap: 10px;
+      min-height: 120px;
+    }
+
+    .mission {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--panel-soft);
+      padding: 14px;
+    }
+
+    .mission h3 {
+      margin: 0;
+      font-size: 15px;
+      letter-spacing: 0;
+    }
+
+    .mission p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .mission-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      border-radius: 999px;
+      background: #edf5ff;
+      color: #1558b0;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 0 9px;
+    }
+
+    .tag.ok {
+      background: #eaf8f0;
+      color: var(--ok);
+    }
+
+    .tag.warn {
+      background: #fff5e5;
+      color: var(--warn);
+    }
+
+    .tag.muted {
+      background: #eef1f5;
+      color: var(--muted);
+    }
+
+    .empty {
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      min-height: 120px;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .log {
+      max-height: 280px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #101828;
+      color: #e4e7ec;
+      font-size: 12px;
+      line-height: 1.7;
+      margin: 0;
+      padding: 12px;
+      white-space: pre-wrap;
+    }
+
+    .raw {
+      max-height: 220px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--panel-soft);
+      color: var(--text);
+      font-size: 12px;
+      line-height: 1.6;
+      margin: 12px 0 0;
+      padding: 12px;
+      white-space: pre-wrap;
+    }
+
+    .message {
+      min-height: 22px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+      margin-top: 12px;
+    }
+
+    .message.error {
+      color: var(--danger);
+    }
+
+    .message.ok {
+      color: var(--ok);
+    }
+
+    .notice {
+      border: 1px solid #f4c790;
+      border-radius: 8px;
+      background: #fff8ed;
+      color: #6f3f00;
+      font-size: 13px;
+      line-height: 1.6;
+      margin-bottom: 18px;
+      padding: 12px 14px;
+    }
+
+    .notice strong {
+      color: #4d2b00;
+    }
+
+    .consent {
+      align-items: flex-start;
+      color: var(--text);
+      display: flex;
+      font-weight: 600;
+      gap: 9px;
+      line-height: 1.5;
+    }
+
+    .consent input {
+      flex: 0 0 auto;
+      margin-top: 3px;
+      min-height: 0;
+      width: auto;
+    }
+
+    .security-note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+      margin: 10px 0 0;
+    }
+
+    @media (max-width: 820px) {
+      .topbar,
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .topbar {
+        align-items: stretch;
+        display: grid;
+      }
+
+      .status-card {
+        min-width: 0;
+      }
+
+      .mission {
+        grid-template-columns: 1fr;
+      }
+
+      .captcha-row,
+      .sms-row {
+        grid-template-columns: 1fr;
+      }
+
+      .captcha-image {
+        width: 100%;
+      }
+
+      .mission button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <h1>积分领取工具</h1>
+        <p>图片验证码获取短信码，登录后一键领取可用积分。</p>
+      </div>
+      <section class="status-card" aria-label="当前状态">
+        <div class="status-row">
+          <span>登录状态</span>
+          <strong id="loginStatus">未登录</strong>
+        </div>
+        <div class="status-row">
+          <span>可用积分</span>
+          <strong id="scoreValue">-</strong>
+        </div>
+        <div class="status-row">
+          <span>任务数量</span>
+          <strong id="taskCount">-</strong>
+        </div>
+        <div class="status-row">
+          <span>上次刷新</span>
+          <strong id="lastRefreshText">-</strong>
+        </div>
+        <div class="status-row">
+          <span>本机保存</span>
+          <strong id="storagePersistText">检测中</strong>
+        </div>
+      </section>
+    </header>
+
+    <section class="notice" aria-label="使用风险提示">
+      <strong>非官方工具。</strong>
+      登录态会明文保存在当前浏览器、当前域名的 localStorage，复制/导入登录信息包含敏感 token。
+      不要在公共电脑使用，不要公开截图或提交真实登录信息。
+    </section>
+
+    <section class="grid">
+      <aside class="panel">
+        <div class="panel-head">
+          <h2>登录</h2>
+        </div>
+        <div class="panel-body">
+          <form id="loginForm" class="form">
+            <label>
+              手机号
+              <input id="phoneInput" autocomplete="tel" inputmode="numeric" maxlength="11" placeholder="11 位手机号">
+            </label>
+            <div class="captcha-row">
+              <label>
+                图片验证码
+                <input id="captchaInput" autocomplete="off" inputmode="numeric" maxlength="8" placeholder="图片里的数字">
+              </label>
+              <div class="captcha-box">
+                <span aria-hidden="true"></span>
+                <img id="captchaImage" class="captcha-image" alt="点击刷新验证码" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='118' height='42' viewBox='0 0 118 42'%3E%3Crect width='118' height='42' rx='8' fill='%23eef3fb'/%3E%3Ctext x='59' y='26' text-anchor='middle' font-size='12' font-family='Arial,sans-serif' fill='%23667085'%3E点击刷新%3C/text%3E%3C/svg%3E">
+              </div>
+            </div>
+            <div class="sms-row">
+              <label>
+                短信验证码
+                <input id="smsInput" autocomplete="one-time-code" inputmode="numeric" maxlength="8" placeholder="收到的短信验证码">
+              </label>
+              <button id="sendSmsBtn" class="secondary" type="button">获取短信码</button>
+            </div>
+            <label class="consent">
+              <input id="publicConsent" type="checkbox">
+              <span>我理解这是非官方工具，登录信息只保存在当前浏览器，账号风险由我自行承担。</span>
+            </label>
+            <button id="loginBtn" type="submit">登录</button>
+          </form>
+
+          <div class="auth-actions">
+            <button id="copyAuthBtn" class="secondary hidden" type="button">复制登录信息</button>
+            <button id="importAuthBtn" class="secondary" type="button">导入登录信息</button>
+            <button id="downloadAuthBtn" class="secondary hidden" type="button">下载登录备份</button>
+            <button id="importAuthFileBtn" class="secondary" type="button">导入备份文件</button>
+            <button id="persistStorageBtn" class="secondary" type="button">强化本机保存</button>
+            <button id="logoutBtn" class="danger hidden" type="button">退出登录</button>
+          </div>
+          <input id="authFileInput" class="hidden" type="file" accept="application/json,.json">
+          <p class="security-note">同一浏览器、同一 GitHub Pages 域名会自动恢复登录态。换域名、清理站点数据、隐私模式或服务端 token 过期仍会失效。</p>
+          <p class="security-note">复制或下载的登录备份是明文敏感数据，请只保存到自己的私有设备，不要上传、截图或转发。</p>
+
+          <div id="tokenBox" class="token-box hidden">
+            <div class="token-line">
+              <span>uid</span>
+              <code id="uidText">-</code>
+            </div>
+            <div class="token-line">
+              <span>eid</span>
+              <code id="eidText">-</code>
+            </div>
+            <div class="token-line">
+              <span>token</span>
+              <code id="tokenText">-</code>
+            </div>
+          </div>
+
+          <div id="loginMessage" class="message"></div>
+          <pre id="rawLogin" class="raw hidden"></pre>
+        </div>
+      </aside>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>积分任务</h2>
+          <div class="actions">
+            <button id="refreshBtn" class="secondary" type="button" disabled>刷新任务</button>
+            <button id="toggleRawBtn" class="secondary" type="button" disabled>原始 JSON</button>
+            <button id="claimAllBtn" type="button" disabled>一键领取积分</button>
+          </div>
+        </div>
+        <div class="panel-body tools">
+          <div class="delay-row">
+            <label>
+              领取间隔
+              <input id="delayInput" type="number" min="5" max="30" step="1" value="10">
+            </label>
+            <button id="clearLogBtn" class="secondary" type="button">清空日志</button>
+          </div>
+          <div id="missionList" class="mission-list">
+            <div class="empty">未加载任务</div>
+          </div>
+          <pre id="missionRaw" class="raw hidden"></pre>
+          <pre id="logBox" class="log"></pre>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const BASE_URL = "https://i.ilife798.com";
+      const SCORE_SALT = "aslkdvcniu34h9tgufh278wv2";
+      const STORAGE = {
+        token: "ys_auth_token",
+        uid: "ys_auth_uid",
+        eid: "ys_auth_eid",
+        rawLogin: "ys_login_raw"
+      };
+
+      const state = {
+        token: "",
+        uid: "",
+        eid: "",
+        rawLogin: null,
+        missionData: null,
+        missionResponse: null,
+        showRawMissions: false,
+        captchaS: "",
+        captchaObjectUrl: "",
+        localTs: 0,
+        serverTs: 0,
+        lastRefreshAt: 0,
+        smsCooldownUntil: 0,
+        smsCooldownTimer: 0,
+        storagePersisted: null,
+        busy: false
+      };
+
+      const $ = (id) => document.getElementById(id);
+      const el = {
+        loginStatus: $("loginStatus"),
+        scoreValue: $("scoreValue"),
+        taskCount: $("taskCount"),
+        lastRefreshText: $("lastRefreshText"),
+        storagePersistText: $("storagePersistText"),
+        loginForm: $("loginForm"),
+        loginBtn: $("loginBtn"),
+        phoneInput: $("phoneInput"),
+        captchaInput: $("captchaInput"),
+        captchaImage: $("captchaImage"),
+        sendSmsBtn: $("sendSmsBtn"),
+        smsInput: $("smsInput"),
+        publicConsent: $("publicConsent"),
+        copyAuthBtn: $("copyAuthBtn"),
+        importAuthBtn: $("importAuthBtn"),
+        downloadAuthBtn: $("downloadAuthBtn"),
+        importAuthFileBtn: $("importAuthFileBtn"),
+        authFileInput: $("authFileInput"),
+        persistStorageBtn: $("persistStorageBtn"),
+        logoutBtn: $("logoutBtn"),
+        uidText: $("uidText"),
+        eidText: $("eidText"),
+        tokenText: $("tokenText"),
+        tokenBox: $("tokenBox"),
+        loginMessage: $("loginMessage"),
+        rawLogin: $("rawLogin"),
+        refreshBtn: $("refreshBtn"),
+        toggleRawBtn: $("toggleRawBtn"),
+        claimAllBtn: $("claimAllBtn"),
+        delayInput: $("delayInput"),
+        clearLogBtn: $("clearLogBtn"),
+        missionList: $("missionList"),
+        missionRaw: $("missionRaw"),
+        logBox: $("logBox")
+      };
+
+      function nowText() {
+        const d = new Date();
+        return d.toTimeString().slice(0, 8);
+      }
+
+      function addLog(text, type = "info") {
+        const mark = type === "ok" ? "OK" : type === "error" ? "ERR" : "INFO";
+        el.logBox.textContent += `[${nowText()}] ${mark} ${text}\n`;
+        el.logBox.scrollTop = el.logBox.scrollHeight;
+      }
+
+      function setMessage(text, type = "") {
+        el.loginMessage.textContent = text;
+        el.loginMessage.className = `message ${type}`.trim();
+      }
+
+      function sleep(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+      }
+
+      function isConsentAccepted() {
+        return Boolean(el.publicConsent?.checked);
+      }
+
+      function requireConsent(actionText) {
+        if (isConsentAccepted()) return true;
+        setMessage(`请先勾选风险确认，再${actionText}`, "error");
+        return false;
+      }
+
+      function smsCooldownRemaining() {
+        return Math.max(0, Math.ceil((state.smsCooldownUntil - Date.now()) / 1000));
+      }
+
+      function startSmsCooldown(seconds = 60) {
+        state.smsCooldownUntil = Date.now() + seconds * 1000;
+        if (state.smsCooldownTimer) {
+          clearInterval(state.smsCooldownTimer);
+        }
+        state.smsCooldownTimer = setInterval(() => {
+          if (smsCooldownRemaining() <= 0) {
+            clearInterval(state.smsCooldownTimer);
+            state.smsCooldownTimer = 0;
+            state.smsCooldownUntil = 0;
+          }
+          render();
+        }, 1000);
+        render();
+      }
+
+      function formatClock(ms) {
+        if (!ms) return "-";
+        return new Date(ms).toLocaleTimeString("zh-CN", { hour12: false });
+      }
+
+      function hasStoragePersistenceApi() {
+        return Boolean(navigator.storage?.persist && navigator.storage?.persisted);
+      }
+
+      function storagePersistLabel() {
+        if (!hasStoragePersistenceApi()) return "不支持";
+        if (state.storagePersisted === true) return "已强化";
+        if (state.storagePersisted === false) return "普通";
+        return "检测中";
+      }
+
+      async function refreshStoragePersistence() {
+        if (!hasStoragePersistenceApi()) {
+          state.storagePersisted = null;
+          render();
+          return false;
+        }
+        try {
+          state.storagePersisted = await navigator.storage.persisted();
+          render();
+          return state.storagePersisted;
+        } catch (error) {
+          state.storagePersisted = null;
+          addLog(`持久保存状态检测失败：${error.message || String(error)}`, "error");
+          render();
+          return false;
+        }
+      }
+
+      async function requestStoragePersistence({ silent = false } = {}) {
+        if (!hasStoragePersistenceApi()) {
+          state.storagePersisted = null;
+          const msg = "当前浏览器不支持持久保存请求，请保留复制登录信息作为备份";
+          if (!silent) {
+            setMessage(msg, "error");
+            addLog(msg, "error");
+          }
+          render();
+          return false;
+        }
+        try {
+          const alreadyPersisted = await navigator.storage.persisted();
+          const ok = alreadyPersisted || await navigator.storage.persist();
+          state.storagePersisted = Boolean(ok);
+          if (!silent) {
+            const msg = ok
+              ? "浏览器已允许本站持久保存登录态"
+              : "浏览器未允许持久保存，建议保留复制登录信息作为备份";
+            setMessage(msg, ok ? "ok" : "error");
+            addLog(msg, ok ? "ok" : "error");
+          }
+          render();
+          return state.storagePersisted;
+        } catch (error) {
+          state.storagePersisted = false;
+          const msg = `持久保存请求失败：${error.message || String(error)}`;
+          if (!silent) {
+            setMessage(msg, "error");
+            addLog(msg, "error");
+          }
+          render();
+          return false;
+        }
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      function maskMiddle(value) {
+        if (!value) return "-";
+        if (value.length <= 18) return value;
+        return `${value.slice(0, 10)}...${value.slice(-8)}`;
+      }
+
+      function toArray(value) {
+        return Array.isArray(value) ? value : [];
+      }
+
+      function scoreInfo() {
+        return state.missionData?.accScoreRsp || null;
+      }
+
+      function missions() {
+        return toArray(state.missionData?.missions)
+          .filter((item) => !isH5Task(item));
+      }
+
+      function dailyCheckInTask() {
+        const dailyRsp = state.missionData?.dailyRSP;
+        const score = Number(dailyRsp?.score || 0);
+        const refId = dailyRsp?.adId || "DAILY_CHECK_IN";
+        if (!dailyRsp || !refId || score <= 0) return null;
+        return {
+          refId,
+          name: "每日签到",
+          desc: `签到领取 ${score} 积分`,
+          score,
+          isDaily: true
+        };
+      }
+
+      function isDailyClaimed() {
+        const task = dailyCheckInTask();
+        if (!task) return false;
+        const limitEntry = limitEntryFor(task.refId);
+        if (limitEntry) return Number(limitEntry.limit ?? 0) <= 0;
+        const reward = Number(scoreInfo()?.daily?.reword || 0);
+        return reward > 0;
+      }
+
+      function dailyRemaining() {
+        const task = dailyCheckInTask();
+        if (!task) return 0;
+        const limitEntry = limitEntryFor(task.refId);
+        if (limitEntry) return Math.max(0, Number(limitEntry.limit ?? 0));
+        return isDailyClaimed() ? 0 : 1;
+      }
+
+      function visibleTasks() {
+        const daily = dailyCheckInTask();
+        const list = missions();
+        return daily ? [daily, ...list] : list;
+      }
+
+      function canDirectClaim(task) {
+        return Boolean(task?.refId) && Number(task?.score || 0) > 0;
+      }
+
+      function isH5Task(task) {
+        return Boolean(task?.url) || Number(task?.type || 0) === 2;
+      }
+
+      function limitEntryFor(refId) {
+        const limits = toArray(scoreInfo()?.limits);
+        return limits.find((item) => item?.refId === refId) || null;
+      }
+
+      function exhaustedRefIds() {
+        const limits = toArray(scoreInfo()?.limits);
+        return new Set(
+          limits
+            .filter((item) => item && item.refId && Number(item.limit ?? 0) <= 0)
+            .map((item) => item.refId)
+        );
+      }
+
+      function remainingFor(refId) {
+        const match = limitEntryFor(refId);
+        if (!match) return 999;
+        return Number(match.limit ?? 0);
+      }
+
+      function claimableMissions() {
+        const exhausted = exhaustedRefIds();
+        return visibleTasks().filter((item) => {
+          if (!canDirectClaim(item)) return false;
+          if (exhausted.has(item.refId || "")) return false;
+          if (item.isDaily && isDailyClaimed()) return false;
+          return true;
+        });
+      }
+
+      function setBusy(nextBusy) {
+        state.busy = nextBusy;
+        render();
+      }
+
+      function exportAuthPayload() {
+        if (!state.token || !state.uid) {
+          throw new Error("当前没有可复制的登录信息");
+        }
+        return {
+          token: state.token,
+          uid: state.uid,
+          eid: state.eid || "",
+          rawLogin: state.rawLogin || null,
+          source: "score-claimer.html",
+          exportedAt: new Date().toISOString()
+        };
+      }
+
+      function parseAuthPayload(text) {
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch (_) {
+          throw new Error("导入内容不是合法 JSON");
+        }
+
+        const candidates = [
+          data?.data?.al,
+          data?.al,
+          data?.auth,
+          data
+        ];
+        const auth = candidates.find((item) => item?.token && item?.uid);
+        if (!auth) {
+          throw new Error("导入内容缺少 token 或 uid");
+        }
+
+        return {
+          auth: {
+            token: String(auth.token),
+            uid: String(auth.uid),
+            eid: auth.eid == null ? "" : String(auth.eid)
+          },
+          rawLogin: data.rawLogin ?? data
+        };
+      }
+
+      async function copyText(text) {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(text);
+          return;
+        }
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
+        const ok = document.execCommand("copy");
+        textarea.remove();
+        if (!ok) throw new Error("浏览器拒绝复制");
+      }
+
+      function downloadTextFile(filename, text) {
+        const blob = new Blob([text], { type: "application/json;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+
+      function authBackupFilename() {
+        const stamp = new Date()
+          .toISOString()
+          .replace(/\.\d{3}Z$/, "Z")
+          .replace(/[-:]/g, "");
+        return `score-claimer-auth-${stamp}.json`;
+      }
+
+      async function readTextFile(file) {
+        if (!file) throw new Error("没有选择备份文件");
+        if (file.size > 1024 * 1024) {
+          throw new Error("备份文件过大，请确认选择的是登录备份 JSON");
+        }
+        if (typeof file.text === "function") {
+          return file.text();
+        }
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ""));
+          reader.onerror = () => reject(new Error("读取备份文件失败"));
+          reader.readAsText(file, "utf-8");
+        });
+      }
+
+      async function importAuthText(text, label = "登录信息") {
+        const cleanText = String(text || "").trim();
+        if (!cleanText) throw new Error("导入内容不能为空");
+        const payload = parseAuthPayload(cleanText);
+        saveAuth(payload.auth, payload.rawLogin);
+        state.missionData = null;
+        state.missionResponse = null;
+        state.showRawMissions = false;
+        setMessage(`${label}已导入`, "ok");
+        addLog(`${label}已导入`, "ok");
+        await requestStoragePersistence({ silent: true });
+        await loadMissions();
+      }
+
+      function saveAuth(auth, rawLogin) {
+        state.token = auth.token || "";
+        state.uid = auth.uid || "";
+        state.eid = auth.eid || "";
+        state.rawLogin = rawLogin || null;
+        localStorage.setItem(STORAGE.token, state.token);
+        localStorage.setItem(STORAGE.uid, state.uid);
+        localStorage.setItem(STORAGE.eid, state.eid);
+        localStorage.setItem(STORAGE.rawLogin, JSON.stringify(state.rawLogin, null, 2));
+      }
+
+      function restoreAuth() {
+        state.token = localStorage.getItem(STORAGE.token) || "";
+        state.uid = localStorage.getItem(STORAGE.uid) || "";
+        state.eid = localStorage.getItem(STORAGE.eid) || "";
+        const raw = localStorage.getItem(STORAGE.rawLogin);
+        try {
+          state.rawLogin = raw ? JSON.parse(raw) : null;
+        } catch (_) {
+          state.rawLogin = raw;
+        }
+      }
+
+      function clearAuth() {
+        state.token = "";
+        state.uid = "";
+        state.eid = "";
+        state.rawLogin = null;
+        state.missionData = null;
+        state.missionResponse = null;
+        state.showRawMissions = false;
+        state.localTs = 0;
+        state.serverTs = 0;
+        state.lastRefreshAt = 0;
+        Object.values(STORAGE).forEach((key) => localStorage.removeItem(key));
+      }
+
+      function authHeaders(json = false) {
+        const headers = {
+          ApplicationType: "1,1",
+          VersionCode: "3.1.4"
+        };
+        if (json) headers["Content-Type"] = "application/json; charset=UTF-8";
+        if (state.token) headers.Authorization = state.token;
+        return headers;
+      }
+
+      async function request(path, options = {}) {
+        const resp = await fetch(`${BASE_URL}${path}`, {
+          ...options,
+          headers: {
+            ...authHeaders(options.json === true),
+            ...(options.headers || {})
+          }
+        });
+        const text = await resp.text();
+        let data = null;
+        try {
+          data = text ? JSON.parse(text) : null;
+        } catch (_) {
+          data = text;
+        }
+        if (!resp.ok) {
+          throw new Error(`HTTP ${resp.status}: ${typeof data === "string" ? data : JSON.stringify(data)}`);
+        }
+        return data;
+      }
+
+      async function fetchCaptcha() {
+        const s = Math.random();
+        const r = Date.now();
+        const resp = await fetch(`${BASE_URL}/api/v1/captcha/?s=${s}&r=${r}`);
+        if (!resp.ok) {
+          throw new Error(`图片验证码加载失败，HTTP ${resp.status}`);
+        }
+        const blob = await resp.blob();
+        if (state.captchaObjectUrl) {
+          URL.revokeObjectURL(state.captchaObjectUrl);
+        }
+        state.captchaS = String(s);
+        state.captchaObjectUrl = URL.createObjectURL(blob);
+        el.captchaImage.src = state.captchaObjectUrl;
+        el.captchaImage.removeAttribute("data-empty");
+        addLog("图片验证码已刷新");
+      }
+
+      async function sendSmsCode(phone, captchaCode) {
+        const data = await request("/api/v1/acc/login/code", {
+          method: "POST",
+          json: true,
+          body: JSON.stringify({
+            authCode: captchaCode,
+            s: Number(state.captchaS),
+            un: phone
+          })
+        });
+        if (data?.code !== 0) {
+          throw new Error(`发送短信失败，code=${data?.code ?? "unknown"}`);
+        }
+        return data;
+      }
+
+      async function login(phone, smsCode) {
+        const data = await request("/api/v1/acc/login", {
+          method: "POST",
+          json: true,
+          body: JSON.stringify({
+            authCode: smsCode,
+            un: phone
+          })
+        });
+        if (data?.code !== 0) {
+          throw new Error(`登录失败，code=${data?.code ?? "unknown"}`);
+        }
+        const auth = data?.data?.al;
+        if (!auth?.token || !auth?.uid) {
+          throw new Error("登录成功但返回缺少 token 或 uid");
+        }
+        saveAuth(auth, data);
+        return data;
+      }
+
+      async function loadMissions({ silent = false } = {}) {
+        if (!state.token) {
+          throw new Error("未登录");
+        }
+        state.localTs = Date.now();
+        const data = await request("/api/v1/acc/score/mission-lst", { method: "GET" });
+        if (data?.code !== 0) {
+          throw new Error(`任务列表加载失败，code=${data?.code ?? "unknown"}`);
+        }
+        state.missionResponse = data;
+        state.missionData = data.data || {};
+        state.serverTs = Number(data.time || state.localTs);
+        state.lastRefreshAt = Date.now();
+        if (!silent) {
+          addLog("任务列表已刷新", "ok");
+        }
+        render();
+        return data;
+      }
+
+      async function sendScore(mission) {
+        const refId = mission.refId;
+        const score = Number(mission.score || 0);
+        if (!refId || !score) {
+          throw new Error("任务缺少 refId 或 score");
+        }
+        const sign = generateScoreSign({
+          adId: refId,
+          token: state.token,
+          uid: state.uid,
+          localTs: state.localTs,
+          serverTs: state.serverTs
+        });
+        return request(`/api/v1/acc/score/score-send?sign=${encodeURIComponent(sign)}&s=1`, {
+          method: "POST",
+          json: true,
+          body: JSON.stringify({
+            adId: refId,
+            type: 101,
+            addScoreType: 1,
+            addScore: score,
+            token: state.token
+          })
+        });
+      }
+
+      async function claimMission(mission, { silent = false } = {}) {
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          const data = await sendScore(mission);
+          if (data?.code === 0) {
+            if (!silent) {
+              addLog(`${mission.name || mission.refId} 领取成功 +${mission.score}`, "ok");
+            }
+            return true;
+          }
+          if (data?.code === -98 && attempt < 2) {
+            const wait = 8 + attempt * 5;
+            addLog(`${mission.name || mission.refId} 被限流，${wait} 秒后重试`);
+            await sleep(wait * 1000);
+            continue;
+          }
+          const msg = data?.data?.msg || data?.msg || `code=${data?.code ?? "unknown"}`;
+          if (!silent) {
+            addLog(`${mission.name || mission.refId} 领取失败：${msg}`, "error");
+          }
+          return false;
+        }
+        return false;
+      }
+
+      async function claimAll() {
+        setBusy(true);
+        let claimed = 0;
+        try {
+          addLog("领取前刷新任务列表");
+          await loadMissions({ silent: true });
+
+          const list = claimableMissions();
+          if (!list.length) {
+            addLog("没有可领取任务");
+            return;
+          }
+
+          const names = list.map((item) => item.name || item.refId).join("、");
+          const okToClaim = window.confirm(`本次将尝试领取 ${list.length} 个任务：${names}\n\n每个任务本轮只尝试一次，确认继续？`);
+          if (!okToClaim) {
+            addLog("已取消一键领取");
+            return;
+          }
+
+          const beforeScore = scoreInfo()?.score ?? "0";
+          const delaySeconds = Math.max(5, Math.min(30, Number(el.delayInput.value || 10)));
+          const attemptedRefIds = new Set();
+
+          addLog(`开始一键领取，共 ${list.length} 个任务，间隔 ${delaySeconds} 秒`);
+          for (let i = 0; i < list.length; i += 1) {
+            const mission = list[i];
+            const refId = mission.refId || "";
+            if (attemptedRefIds.has(refId)) {
+              addLog(`${mission.name || refId} 本轮已尝试过，跳过`);
+              continue;
+            }
+            if (exhaustedRefIds().has(refId) || (mission.isDaily && isDailyClaimed())) {
+              addLog(`${mission.name || mission.refId} 已用完，跳过`);
+              continue;
+            }
+            attemptedRefIds.add(refId);
+            addLog(`领取 ${mission.name || mission.refId} +${mission.score}`);
+            const ok = await claimMission(mission, { silent: true });
+            if (ok) {
+              claimed += 1;
+              addLog(`${mission.name || mission.refId} 领取成功`, "ok");
+              await loadMissions({ silent: true });
+            } else {
+              addLog(`${mission.name || mission.refId} 领取失败`, "error");
+            }
+            if (i < list.length - 1) {
+              await sleep(delaySeconds * 1000);
+            }
+          }
+          await loadMissions({ silent: true });
+          const afterScore = scoreInfo()?.score ?? "0";
+          addLog(`完成：领取 ${claimed} 个任务，积分 ${beforeScore} -> ${afterScore}`, "ok");
+        } catch (error) {
+          addLog(error.message || String(error), "error");
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      function render() {
+        const authed = Boolean(state.token && state.uid);
+        const info = scoreInfo();
+        const visibleMissions = visibleTasks();
+        const claimable = claimableMissions();
+
+        el.loginStatus.textContent = authed ? "已登录" : "未登录";
+        el.scoreValue.textContent = info?.score ?? "-";
+        el.taskCount.textContent = state.missionData ? `${claimable.length}/${visibleMissions.length}` : "-";
+        el.lastRefreshText.textContent = formatClock(state.lastRefreshAt);
+        el.storagePersistText.textContent = storagePersistLabel();
+
+        el.loginForm.classList.toggle("hidden", authed);
+        el.logoutBtn.classList.toggle("hidden", !authed);
+        el.copyAuthBtn.classList.toggle("hidden", !authed);
+        el.downloadAuthBtn.classList.toggle("hidden", !authed);
+        el.tokenBox.classList.toggle("hidden", !authed);
+        el.rawLogin.classList.toggle("hidden", !state.rawLogin);
+
+        el.uidText.textContent = state.uid || "-";
+        el.eidText.textContent = state.eid || "-";
+        el.tokenText.textContent = maskMiddle(state.token);
+        el.rawLogin.classList.add("hidden");
+        el.rawLogin.textContent = "";
+
+        const consented = isConsentAccepted();
+        const smsRemaining = smsCooldownRemaining();
+
+        el.loginBtn.disabled = state.busy || (!authed && !consented);
+        el.captchaInput.disabled = state.busy;
+        el.captchaImage.style.pointerEvents = state.busy ? "none" : "";
+        el.phoneInput.disabled = state.busy;
+        el.sendSmsBtn.disabled = state.busy || authed || !consented || smsRemaining > 0;
+        el.sendSmsBtn.textContent = smsRemaining > 0 ? `${smsRemaining}s 后重试` : "获取短信码";
+        el.smsInput.disabled = state.busy;
+        el.publicConsent.disabled = state.busy;
+        el.copyAuthBtn.disabled = !authed || state.busy;
+        el.downloadAuthBtn.disabled = !authed || state.busy;
+        el.importAuthBtn.disabled = state.busy || (!authed && !consented);
+        el.importAuthFileBtn.disabled = state.busy || (!authed && !consented);
+        el.persistStorageBtn.disabled = state.busy || !hasStoragePersistenceApi();
+        el.persistStorageBtn.textContent = state.storagePersisted ? "已强化保存" : "强化本机保存";
+        el.refreshBtn.disabled = !authed || state.busy;
+        el.toggleRawBtn.disabled = !authed || state.busy || !state.missionResponse;
+        el.toggleRawBtn.textContent = state.showRawMissions ? "隐藏 JSON" : "原始 JSON";
+        el.claimAllBtn.disabled = !authed || state.busy || claimable.length === 0;
+        el.logoutBtn.disabled = state.busy;
+        el.delayInput.disabled = state.busy;
+        el.missionRaw.classList.toggle("hidden", !state.showRawMissions || !state.missionResponse);
+        el.missionRaw.textContent = state.missionResponse ? JSON.stringify(state.missionResponse, null, 2) : "";
+
+        renderMissions(visibleMissions);
+      }
+
+      function renderMissions(list) {
+        if (!state.missionData) {
+          el.missionList.innerHTML = '<div class="empty">未加载任务</div>';
+          return;
+        }
+        if (!list.length) {
+          el.missionList.innerHTML = '<div class="empty">暂无积分任务</div>';
+          return;
+        }
+
+        const exhausted = exhaustedRefIds();
+        el.missionList.innerHTML = list.map((mission, index) => {
+          const refId = mission.refId || "";
+          const name = mission.name || "未知任务";
+          const desc = mission.desc || "";
+          const score = Number(mission.score || 0);
+          const isDaily = mission.isDaily === true;
+          const directClaim = canDirectClaim(mission);
+          const isExhausted = exhausted.has(refId) || (isDaily && isDailyClaimed());
+          const remaining = isDaily ? dailyRemaining() : remainingFor(refId);
+          const statusText = !directClaim
+            ? "不可直领"
+            : (isExhausted ? "已领完" : `可领 ${remaining} 次`);
+          const buttonText = !directClaim ? "非直领" : (isExhausted ? "已领完" : "领取");
+          const disabled = !directClaim || isExhausted || state.busy;
+          return `
+            <article class="mission">
+              <div>
+                <h3>${escapeHtml(name)}</h3>
+                <p>${escapeHtml(desc)}</p>
+                <div class="mission-meta">
+                  <span class="tag ${score > 0 ? "ok" : "muted"}">${score > 0 ? `+${score}` : "无直领奖励"}</span>
+                  ${isDaily ? '<span class="tag">签到</span>' : ''}
+                  <span class="tag ${directClaim && !isExhausted ? "warn" : "muted"}">${statusText}</span>
+                  <span class="tag muted">${escapeHtml(refId)}</span>
+                </div>
+              </div>
+              <button type="button" data-claim-index="${index}" ${disabled ? "disabled" : ""}>${buttonText}</button>
+            </article>
+          `;
+        }).join("");
+      }
+
+      function generateScoreSign({ adId, token, uid, localTs, serverTs }) {
+        if (!token || token.length < 8 || !uid || uid.length < 8) {
+          throw new Error("token 或 uid 长度不足，无法生成签名");
+        }
+        const nowMs = Date.now();
+        const v20 = 10 * Math.floor((Number(serverTs) - Number(localTs) + nowMs) / 10000);
+        const raw = `${adId}${v20}${token.slice(-8)}${uid.slice(-8)}${SCORE_SALT}`;
+        return md5(raw);
+      }
+
+      function md5(input) {
+        function cmn(q, a, b, x, s, t) {
+          a = add32(add32(a, q), add32(x, t));
+          return add32((a << s) | (a >>> (32 - s)), b);
+        }
+        function ff(a, b, c, d, x, s, t) {
+          return cmn((b & c) | ((~b) & d), a, b, x, s, t);
+        }
+        function gg(a, b, c, d, x, s, t) {
+          return cmn((b & d) | (c & (~d)), a, b, x, s, t);
+        }
+        function hh(a, b, c, d, x, s, t) {
+          return cmn(b ^ c ^ d, a, b, x, s, t);
+        }
+        function ii(a, b, c, d, x, s, t) {
+          return cmn(c ^ (b | (~d)), a, b, x, s, t);
+        }
+        function add32(a, b) {
+          return (a + b) & 0xffffffff;
+        }
+        function rhex(n) {
+          let s = "";
+          for (let j = 0; j < 4; j += 1) {
+            s += ((n >> (j * 8 + 4)) & 0x0f).toString(16) + ((n >> (j * 8)) & 0x0f).toString(16);
+          }
+          return s;
+        }
+        function toUtf8Bytes(str) {
+          return unescape(encodeURIComponent(str));
+        }
+        function md5cycle(x, k) {
+          let [a, b, c, d] = x;
+          const aa = a;
+          const bb = b;
+          const cc = c;
+          const dd = d;
+
+          a = ff(a, b, c, d, k[0], 7, -680876936);
+          d = ff(d, a, b, c, k[1], 12, -389564586);
+          c = ff(c, d, a, b, k[2], 17, 606105819);
+          b = ff(b, c, d, a, k[3], 22, -1044525330);
+          a = ff(a, b, c, d, k[4], 7, -176418897);
+          d = ff(d, a, b, c, k[5], 12, 1200080426);
+          c = ff(c, d, a, b, k[6], 17, -1473231341);
+          b = ff(b, c, d, a, k[7], 22, -45705983);
+          a = ff(a, b, c, d, k[8], 7, 1770035416);
+          d = ff(d, a, b, c, k[9], 12, -1958414417);
+          c = ff(c, d, a, b, k[10], 17, -42063);
+          b = ff(b, c, d, a, k[11], 22, -1990404162);
+          a = ff(a, b, c, d, k[12], 7, 1804603682);
+          d = ff(d, a, b, c, k[13], 12, -40341101);
+          c = ff(c, d, a, b, k[14], 17, -1502002290);
+          b = ff(b, c, d, a, k[15], 22, 1236535329);
+
+          a = gg(a, b, c, d, k[1], 5, -165796510);
+          d = gg(d, a, b, c, k[6], 9, -1069501632);
+          c = gg(c, d, a, b, k[11], 14, 643717713);
+          b = gg(b, c, d, a, k[0], 20, -373897302);
+          a = gg(a, b, c, d, k[5], 5, -701558691);
+          d = gg(d, a, b, c, k[10], 9, 38016083);
+          c = gg(c, d, a, b, k[15], 14, -660478335);
+          b = gg(b, c, d, a, k[4], 20, -405537848);
+          a = gg(a, b, c, d, k[9], 5, 568446438);
+          d = gg(d, a, b, c, k[14], 9, -1019803690);
+          c = gg(c, d, a, b, k[3], 14, -187363961);
+          b = gg(b, c, d, a, k[8], 20, 1163531501);
+          a = gg(a, b, c, d, k[13], 5, -1444681467);
+          d = gg(d, a, b, c, k[2], 9, -51403784);
+          c = gg(c, d, a, b, k[7], 14, 1735328473);
+          b = gg(b, c, d, a, k[12], 20, -1926607734);
+
+          a = hh(a, b, c, d, k[5], 4, -378558);
+          d = hh(d, a, b, c, k[8], 11, -2022574463);
+          c = hh(c, d, a, b, k[11], 16, 1839030562);
+          b = hh(b, c, d, a, k[14], 23, -35309556);
+          a = hh(a, b, c, d, k[1], 4, -1530992060);
+          d = hh(d, a, b, c, k[4], 11, 1272893353);
+          c = hh(c, d, a, b, k[7], 16, -155497632);
+          b = hh(b, c, d, a, k[10], 23, -1094730640);
+          a = hh(a, b, c, d, k[13], 4, 681279174);
+          d = hh(d, a, b, c, k[0], 11, -358537222);
+          c = hh(c, d, a, b, k[3], 16, -722521979);
+          b = hh(b, c, d, a, k[6], 23, 76029189);
+          a = hh(a, b, c, d, k[9], 4, -640364487);
+          d = hh(d, a, b, c, k[12], 11, -421815835);
+          c = hh(c, d, a, b, k[15], 16, 530742520);
+          b = hh(b, c, d, a, k[2], 23, -995338651);
+
+          a = ii(a, b, c, d, k[0], 6, -198630844);
+          d = ii(d, a, b, c, k[7], 10, 1126891415);
+          c = ii(c, d, a, b, k[14], 15, -1416354905);
+          b = ii(b, c, d, a, k[5], 21, -57434055);
+          a = ii(a, b, c, d, k[12], 6, 1700485571);
+          d = ii(d, a, b, c, k[3], 10, -1894986606);
+          c = ii(c, d, a, b, k[10], 15, -1051523);
+          b = ii(b, c, d, a, k[1], 21, -2054922799);
+          a = ii(a, b, c, d, k[8], 6, 1873313359);
+          d = ii(d, a, b, c, k[15], 10, -30611744);
+          c = ii(c, d, a, b, k[6], 15, -1560198380);
+          b = ii(b, c, d, a, k[13], 21, 1309151649);
+          a = ii(a, b, c, d, k[4], 6, -145523070);
+          d = ii(d, a, b, c, k[11], 10, -1120210379);
+          c = ii(c, d, a, b, k[2], 15, 718787259);
+          b = ii(b, c, d, a, k[9], 21, -343485551);
+
+          x[0] = add32(a, aa);
+          x[1] = add32(b, bb);
+          x[2] = add32(c, cc);
+          x[3] = add32(d, dd);
+        }
+        function md5blk(s) {
+          const blocks = [];
+          for (let i = 0; i < 64; i += 4) {
+            blocks[i >> 2] = s.charCodeAt(i)
+              + (s.charCodeAt(i + 1) << 8)
+              + (s.charCodeAt(i + 2) << 16)
+              + (s.charCodeAt(i + 3) << 24);
+          }
+          return blocks;
+        }
+        function md51(s) {
+          const txt = toUtf8Bytes(s);
+          const n = txt.length;
+          const stateValue = [1732584193, -271733879, -1732584194, 271733878];
+          let i = 0;
+          for (; i + 64 <= n; i += 64) {
+            md5cycle(stateValue, md5blk(txt.substring(i, i + 64)));
+          }
+          const tail = Array(16).fill(0);
+          const rest = txt.substring(i);
+          for (let j = 0; j < rest.length; j += 1) {
+            tail[j >> 2] |= rest.charCodeAt(j) << ((j % 4) << 3);
+          }
+          tail[rest.length >> 2] |= 0x80 << ((rest.length % 4) << 3);
+          if (rest.length > 55) {
+            md5cycle(stateValue, tail);
+            tail.fill(0);
+          }
+          tail[14] = n * 8;
+          md5cycle(stateValue, tail);
+          return stateValue;
+        }
+        return md51(input).map(rhex).join("");
+      }
+
+      el.loginForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!requireConsent("登录")) return;
+        const phone = el.phoneInput.value.trim();
+        const smsCode = el.smsInput.value.trim();
+        if (!/^\d{11}$/.test(phone)) {
+          setMessage("手机号格式不对", "error");
+          return;
+        }
+        if (!smsCode) {
+          setMessage("短信验证码不能为空", "error");
+          return;
+        }
+        setBusy(true);
+        setMessage("登录中...");
+        try {
+          await login(phone, smsCode);
+          await requestStoragePersistence({ silent: true });
+          setMessage("登录成功", "ok");
+          addLog("登录成功，已保存 token", "ok");
+          await loadMissions();
+        } catch (error) {
+          setMessage(error.message || String(error), "error");
+          addLog(error.message || String(error), "error");
+        } finally {
+          setBusy(false);
+        }
+      });
+
+      el.captchaImage.addEventListener("click", async () => {
+        if (state.busy) return;
+        setBusy(true);
+        setMessage("刷新图片验证码...");
+        try {
+          await fetchCaptcha();
+          setMessage("图片验证码已刷新");
+        } catch (error) {
+          setMessage(error.message || String(error), "error");
+          addLog(error.message || String(error), "error");
+        } finally {
+          setBusy(false);
+        }
+      });
+
+      el.sendSmsBtn.addEventListener("click", async () => {
+        if (!requireConsent("获取短信验证码")) return;
+        const phone = el.phoneInput.value.trim();
+        const captchaCode = el.captchaInput.value.trim();
+        if (!/^\d{11}$/.test(phone)) {
+          setMessage("手机号格式不对", "error");
+          return;
+        }
+        if (!state.captchaS) {
+          setMessage("请先刷新图片验证码", "error");
+          return;
+        }
+        if (!captchaCode) {
+          setMessage("图片验证码不能为空", "error");
+          return;
+        }
+        setBusy(true);
+        setMessage("发送短信验证码...");
+        try {
+          await sendSmsCode(phone, captchaCode);
+          startSmsCooldown(60);
+          setMessage("短信验证码已发送", "ok");
+          addLog("短信验证码已发送", "ok");
+        } catch (error) {
+          setMessage(error.message || String(error), "error");
+          addLog(error.message || String(error), "error");
+        } finally {
+          setBusy(false);
+        }
+      });
+
+      el.copyAuthBtn.addEventListener("click", async () => {
+        if (state.busy) return;
+        try {
+          const text = JSON.stringify(exportAuthPayload(), null, 2);
+          await copyText(text);
+          setMessage("登录信息已复制", "ok");
+          addLog("登录信息已复制", "ok");
+        } catch (error) {
+          setMessage(error.message || String(error), "error");
+          addLog(error.message || String(error), "error");
+        }
+      });
+
+      el.downloadAuthBtn.addEventListener("click", () => {
+        if (state.busy) return;
+        try {
+          const text = JSON.stringify(exportAuthPayload(), null, 2);
+          downloadTextFile(authBackupFilename(), text);
+          setMessage("登录备份已下载", "ok");
+          addLog("登录备份已下载", "ok");
+        } catch (error) {
+          setMessage(error.message || String(error), "error");
+          addLog(error.message || String(error), "error");
+        }
+      });
+
+      el.importAuthBtn.addEventListener("click", async () => {
+        if (state.busy) return;
+        if (!state.token && !requireConsent("导入登录信息")) return;
+        const text = window.prompt("粘贴登录信息 JSON：支持复制出的 JSON 或完整登录响应");
+        if (text == null) return;
+        setBusy(true);
+        try {
+          await importAuthText(text, "登录信息");
+        } catch (error) {
+          setMessage(error.message || String(error), "error");
+          addLog(error.message || String(error), "error");
+        } finally {
+          setBusy(false);
+        }
+      });
+
+      el.importAuthFileBtn.addEventListener("click", () => {
+        if (state.busy) return;
+        if (!state.token && !requireConsent("导入备份文件")) return;
+        el.authFileInput.value = "";
+        el.authFileInput.click();
+      });
+
+      el.authFileInput.addEventListener("change", async () => {
+        const file = el.authFileInput.files?.[0];
+        if (!file) return;
+        if (!state.token && !requireConsent("导入备份文件")) {
+          el.authFileInput.value = "";
+          return;
+        }
+        setBusy(true);
+        try {
+          const text = await readTextFile(file);
+          await importAuthText(text, "备份文件");
+        } catch (error) {
+          setMessage(error.message || String(error), "error");
+          addLog(error.message || String(error), "error");
+        } finally {
+          el.authFileInput.value = "";
+          setBusy(false);
+        }
+      });
+
+      el.logoutBtn.addEventListener("click", () => {
+        clearAuth();
+        setMessage("已退出");
+        addLog("登录态已清空");
+        render();
+        fetchCaptcha().catch((error) => addLog(error.message || String(error), "error"));
+      });
+
+      el.persistStorageBtn.addEventListener("click", async () => {
+        if (state.busy) return;
+        setBusy(true);
+        try {
+          await requestStoragePersistence();
+        } finally {
+          setBusy(false);
+        }
+      });
+
+      el.refreshBtn.addEventListener("click", async () => {
+        setBusy(true);
+        try {
+          await loadMissions();
+        } catch (error) {
+          addLog(error.message || String(error), "error");
+        } finally {
+          setBusy(false);
+        }
+      });
+
+      el.toggleRawBtn.addEventListener("click", () => {
+        state.showRawMissions = !state.showRawMissions;
+        render();
+      });
+
+      el.claimAllBtn.addEventListener("click", claimAll);
+
+      el.publicConsent.addEventListener("change", render);
+
+      el.clearLogBtn.addEventListener("click", () => {
+        el.logBox.textContent = "";
+      });
+
+      el.missionList.addEventListener("click", async (event) => {
+        const button = event.target.closest("[data-claim-index]");
+        if (!button) return;
+        const index = Number(button.dataset.claimIndex);
+        const mission = visibleTasks()[index];
+        if (!mission) return;
+        if (!canDirectClaim(mission)) {
+          addLog(`${mission.name || mission.refId || "该任务"} 不是 score-send 直领任务，已跳过`);
+          return;
+        }
+        setBusy(true);
+        try {
+          const ok = await claimMission(mission);
+          if (ok) {
+            await loadMissions({ silent: true });
+          }
+        } catch (error) {
+          addLog(error.message || String(error), "error");
+        } finally {
+          setBusy(false);
+        }
+      });
+
+      window.scoreClaimerDebug = Object.freeze({
+        md5,
+        generateScoreSign
+      });
+
+      restoreAuth();
+      render();
+      refreshStoragePersistence();
+      if (state.token && state.uid) {
+        addLog("已从 localStorage 恢复登录态");
+        loadMissions().catch((error) => addLog(error.message || String(error), "error"));
+      } else {
+        fetchCaptcha().catch((error) => addLog(error.message || String(error), "error"));
+      }
+    })();
+  </script>
+</body>
+</html>
