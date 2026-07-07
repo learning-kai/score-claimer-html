@@ -1,12 +1,12 @@
 # Score Claimer HTML
 
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Version](https://img.shields.io/badge/version-0.4.0-blue)
+![Version](https://img.shields.io/badge/version-0.5.0-blue)
 ![Platform](https://img.shields.io/badge/platform-static%20HTML-orange)
 
 [简体中文](README.zh-CN.md)
 
-A single-file static HTML tool for logging in with an existing SMS flow and claiming available score missions from the browser.
+A single-file static HTML tool for logging in with an existing SMS flow, claiming available score missions from the browser, and optionally syncing auth to a Cloudflare Worker for scheduled claiming.
 
 > Unofficial third-party utility for personal study and automation experiments. It is not affiliated with, endorsed by, or certified by any upstream service provider.
 
@@ -30,6 +30,8 @@ The original app contains many unrelated features. This folder keeps only the sc
 - H5 missions are hidden from the claim list.
 - Each `refId` is attempted at most once per one-click claim run.
 - `code == -98` retries up to three attempts for the current mission.
+- Optional Cloudflare Worker runner for daily scheduled claiming.
+- Cloud auth sync, cloud status check, and immediate cloud run from the page.
 
 ## Screenshots & Demo
 
@@ -62,6 +64,7 @@ GitHub Pages:
 - No bundled secrets or account data.
 - The page uses direct browser `fetch` calls to the upstream API.
 - Claiming is intentionally serial and rate-limited by delay.
+- Cloud scheduled claiming runs outside the browser through a Worker Cron Trigger.
 
 ## Project Docs
 
@@ -77,11 +80,13 @@ Downloaded login backups are plain JSON files containing sensitive account token
 
 Login data is scoped to the same browser profile and the same deployed origin. Keeping one stable GitHub Pages domain helps the browser restore the local login state for a long time, especially when Persistent Storage is granted. It still cannot prevent manual site-data clearing, private browsing cleanup, browser changes, domain changes, or upstream token expiration.
 
+Cloud scheduled claiming stores the synced `token`, `uid`, and `eid` in Cloudflare KV. The page stores the Worker `ADMIN_KEY` in browser `localStorage` so it can call `/auth`, `/status`, and `/run`. Do not commit or publish the real `ADMIN_KEY`.
+
 SMS login is still manual. This project does not bypass captcha or SMS verification.
 
 ## Release & Updates
 
-Current standalone publishing folder version: `0.4.0`.
+Current standalone publishing folder version: `0.5.0`.
 
 `0.2.0` adds public-use safety copy, a consent gate, SMS cooldown, last refresh time, and a pre-claim confirmation flow.
 
@@ -89,10 +94,10 @@ Current standalone publishing folder version: `0.4.0`.
 
 `0.4.0` adds downloaded login backups and JSON backup file import for easier long-term recovery after browser data loss.
 
+`0.5.0` adds Cloudflare Worker scheduled claiming controls: save admin key, sync auth to cloud, view cloud status, and run once immediately.
+
 ## Roadmap
 
-- Optional Cloudflare Worker runner for scheduled claiming.
-- A small status export for the latest claim result.
 - Better error messages for expired login sessions.
 
 ## Troubleshooting

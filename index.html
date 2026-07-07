@@ -267,6 +267,34 @@
       margin-top: 16px;
     }
 
+    .cloud-box {
+      display: grid;
+      gap: 12px;
+      margin-top: 18px;
+      border-top: 1px solid var(--border);
+      padding-top: 18px;
+    }
+
+    .cloud-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .cloud-head strong {
+      display: block;
+      font-size: 15px;
+    }
+
+    .cloud-head span:not(.tag) {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+      margin-top: 4px;
+    }
+
     .token-line {
       display: grid;
       gap: 5px;
@@ -572,7 +600,7 @@
             <button id="logoutBtn" class="danger hidden" type="button">退出登录</button>
           </div>
           <input id="authFileInput" class="hidden" type="file" accept="application/json,.json">
-          <p class="security-note">同一浏览器、同一 GitHub Pages 域名会自动恢复登录态。换域名、清理站点数据、隐私模式或服务端 token 过期仍会失效。</p>
+          <p class="security-note">同一浏览器、同一域名会自动恢复登录态。云端定时会把 token 保存到 Cloudflare KV，token 过期后需要重新同步。</p>
           <p class="security-note">复制或下载的登录备份是明文敏感数据，请只保存到自己的私有设备，不要上传、截图或转发。</p>
 
           <div id="tokenBox" class="token-box hidden">
@@ -588,6 +616,35 @@
               <span>token</span>
               <code id="tokenText">-</code>
             </div>
+          </div>
+
+          <div class="cloud-box" aria-label="云端定时">
+            <div class="cloud-head">
+              <div>
+                <strong>云端定时</strong>
+                <span id="cloudScheduleText">每天北京时间 08:10</span>
+              </div>
+              <span id="cloudStatusPill" class="tag muted">未连接</span>
+            </div>
+            <label>
+              管理密钥
+              <input id="cloudKeyInput" autocomplete="off" spellcheck="false" placeholder="ADMIN_KEY">
+            </label>
+            <div class="auth-actions">
+              <button id="saveCloudKeyBtn" class="secondary" type="button">保存密钥</button>
+              <button id="syncCloudAuthBtn" type="button" disabled>同步到云端</button>
+              <button id="cloudStatusBtn" class="secondary" type="button" disabled>查看状态</button>
+              <button id="cloudRunBtn" class="secondary" type="button" disabled>立即运行</button>
+            </div>
+            <div class="token-line">
+              <span>云端登录态</span>
+              <code id="cloudAuthText">-</code>
+            </div>
+            <div class="token-line">
+              <span>最近运行</span>
+              <code id="cloudLastRunText">-</code>
+            </div>
+            <pre id="cloudRaw" class="raw hidden"></pre>
           </div>
 
           <div id="loginMessage" class="message"></div>
@@ -627,7 +684,9 @@
       "use strict";
 
       const BASE_URL = "https://i.ilife798.com";
+      const CLOUD_WORKER_URL = "https://auto.huishenghuo.skyhold.cloud";
       const SCORE_SALT = "aslkdvcniu34h9tgufh278wv2";
+      const CLOUD_ADMIN_KEY_STORAGE = "ys_cloud_admin_key";
       const STORAGE = {
         token: "ys_auth_token",
         uid: "ys_auth_uid",
@@ -651,6 +710,9 @@
         smsCooldownUntil: 0,
         smsCooldownTimer: 0,
         storagePersisted: null,
+        cloudAdminKey: "",
+        cloudStatus: null,
+        cloudStatusUpdatedAt: 0,
         busy: false
       };
 
@@ -689,6 +751,16 @@
         clearLogBtn: $("clearLogBtn"),
         missionList: $("missionList"),
         missionRaw: $("missionRaw"),
+        cloudKeyInput: $("cloudKeyInput"),
+        saveCloudKeyBtn: $("saveCloudKeyBtn"),
+        syncCloudAuthBtn: $("syncCloudAuthBtn"),
+        cloudStatusBtn: $("cloudStatusBtn"),
+        cloudRunBtn: $("cloudRunBtn"),
+        cloudScheduleText: $("cloudScheduleText"),
+        cloudStatusPill: $("cloudStatusPill"),
+        cloudAuthText: $("cloudAuthText"),
+        cloudLastRunText: $("cloudLastRunText"),
+        cloudRaw: $("cloudRaw"),
         logBox: $("logBox")
       };
 
@@ -745,6 +817,19 @@
       function formatClock(ms) {
         if (!ms) return "-";
         return new Date(ms).toLocaleTimeString("zh-CN", { hour12: false });
+      }
+
+      function formatDateTime(value) {
+        if (!value) return "-";
+        const time = new Date(value).getTime();
+        if (!Number.isFinite(time)) return "-";
+        return new Date(time).toLocaleString("zh-CN", { hour12: false });
+      }
+
+      function triggerLabel(value) {
+        if (value === "cron") return "定时";
+        if (value === "manual") return "手动";
+        return value || "未知";
       }
 
       function hasStoragePersistenceApi() {
@@ -1054,6 +1139,10 @@
         }
       }
 
+      function restoreCloudAdminKey() {
+        state.cloudAdminKey = localStorage.getItem(CLOUD_ADMIN_KEY_STORAGE) || "";
+      }
+
       function clearAuth() {
         state.token = "";
         state.uid = "";
@@ -1066,6 +1155,103 @@
         state.serverTs = 0;
         state.lastRefreshAt = 0;
         Object.values(STORAGE).forEach((key) => localStorage.removeItem(key));
+      }
+
+      function currentCloudAdminKey() {
+        return (el.cloudKeyInput.value || state.cloudAdminKey || "").trim();
+      }
+
+      function saveCloudAdminKey({ silent = false } = {}) {
+        const key = currentCloudAdminKey();
+        if (!key) {
+          throw new Error("管理密钥不能为空");
+        }
+        state.cloudAdminKey = key;
+        localStorage.setItem(CLOUD_ADMIN_KEY_STORAGE, key);
+        if (!silent) {
+          setMessage("云端管理密钥已保存", "ok");
+          addLog("云端管理密钥已保存", "ok");
+        }
+        render();
+        return key;
+      }
+
+      async function cloudRequest(path, { method = "GET", body = null } = {}) {
+        const key = saveCloudAdminKey({ silent: true });
+        const headers = {
+          Authorization: `Bearer ${key}`
+        };
+        const init = { method, headers };
+        if (body != null) {
+          headers["Content-Type"] = "application/json; charset=UTF-8";
+          init.body = JSON.stringify(body);
+        }
+        const resp = await fetch(`${CLOUD_WORKER_URL}${path}`, init);
+        const text = await resp.text();
+        let data = null;
+        try {
+          data = text ? JSON.parse(text) : null;
+        } catch (_) {
+          data = text;
+        }
+        if (!resp.ok) {
+          const message = typeof data === "string"
+            ? data
+            : (data?.error || data?.message || JSON.stringify(data));
+          throw new Error(`云端请求失败，HTTP ${resp.status}: ${message}`);
+        }
+        return data;
+      }
+
+      async function syncCloudAuth() {
+        if (!state.token || !state.uid) {
+          throw new Error("请先登录或导入登录信息");
+        }
+        const ok = window.confirm("将当前 token/uid/eid 保存到 Cloudflare KV，用于每天定时领取积分。确认同步？");
+        if (!ok) {
+          addLog("已取消同步云端登录态");
+          return;
+        }
+        const data = await cloudRequest("/auth", {
+          method: "POST",
+          body: exportAuthPayload()
+        });
+        addLog(`云端登录态已同步：uid=${data.uid || state.uid}`, "ok");
+        await refreshCloudStatus({ silent: true });
+      }
+
+      async function refreshCloudStatus({ silent = false } = {}) {
+        const data = await cloudRequest("/status");
+        state.cloudStatus = data;
+        state.cloudStatusUpdatedAt = Date.now();
+        if (!silent) {
+          addLog("云端状态已刷新", "ok");
+        }
+        render();
+        return data;
+      }
+
+      async function runCloudNow() {
+        const ok = window.confirm("将在云端立即执行一次领取，逻辑与每天定时任务一致。确认运行？");
+        if (!ok) {
+          addLog("已取消立即云端运行");
+          return;
+        }
+        addLog("云端开始运行，可能需要几十秒");
+        const data = await cloudRequest("/run", { method: "POST" });
+        state.cloudStatus = {
+          ok: true,
+          hasAuth: true,
+          schedule: "10 0 * * *",
+          scheduleText: "每天北京时间 08:10",
+          lastResult: data
+        };
+        state.cloudStatusUpdatedAt = Date.now();
+        const resultText = data.ok
+          ? `云端运行完成：领取 ${data.claimed || 0} 个，积分 ${data.beforeScore ?? "-"} -> ${data.afterScore ?? "-"}`
+          : `云端运行失败：${data.error || "unknown"}`;
+        addLog(resultText, data.ok ? "ok" : "error");
+        render();
       }
 
       function authHeaders(json = false) {
@@ -1283,6 +1469,52 @@
         }
       }
 
+      function renderCloudStatus(authed) {
+        if (document.activeElement !== el.cloudKeyInput && el.cloudKeyInput.value !== state.cloudAdminKey) {
+          el.cloudKeyInput.value = state.cloudAdminKey;
+        }
+
+        const hasCloudKey = Boolean(currentCloudAdminKey());
+        const cloud = state.cloudStatus;
+        const last = cloud?.lastResult || null;
+        const hasCloudAuth = cloud?.hasAuth === true;
+
+        el.cloudScheduleText.textContent = cloud?.scheduleText || "每天北京时间 08:10";
+        el.cloudAuthText.textContent = cloud
+          ? (hasCloudAuth ? `已保存，${formatDateTime(cloud.authUpdatedAt)}` : "未保存")
+          : (hasCloudKey ? "未查询" : "先填密钥");
+
+        if (last) {
+          const trigger = triggerLabel(last.meta?.trigger);
+          const result = last.ok
+            ? `成功，领取 ${last.claimed || 0} 个，积分 ${last.beforeScore ?? "-"} -> ${last.afterScore ?? "-"}`
+            : `失败，${last.error || "unknown"}`;
+          el.cloudLastRunText.textContent = `${trigger} ${formatDateTime(last.finishedAt)}，${result}`;
+        } else {
+          el.cloudLastRunText.textContent = cloud ? "暂无运行记录" : "-";
+        }
+
+        let pillText = "未连接";
+        let pillClass = "tag muted";
+        if (!hasCloudKey) {
+          pillText = "缺密钥";
+          pillClass = "tag warn";
+        } else if (cloud) {
+          pillText = hasCloudAuth ? "已同步" : "未同步";
+          pillClass = hasCloudAuth ? "tag ok" : "tag warn";
+        }
+        el.cloudStatusPill.textContent = pillText;
+        el.cloudStatusPill.className = pillClass;
+
+        el.cloudKeyInput.disabled = state.busy;
+        el.saveCloudKeyBtn.disabled = state.busy || !hasCloudKey;
+        el.syncCloudAuthBtn.disabled = state.busy || !authed || !hasCloudKey;
+        el.cloudStatusBtn.disabled = state.busy || !hasCloudKey;
+        el.cloudRunBtn.disabled = state.busy || !hasCloudKey;
+        el.cloudRaw.classList.toggle("hidden", !cloud);
+        el.cloudRaw.textContent = cloud ? JSON.stringify(cloud, null, 2) : "";
+      }
+
       function render() {
         const authed = Boolean(state.token && state.uid);
         const info = scoreInfo();
@@ -1334,6 +1566,7 @@
         el.missionRaw.classList.toggle("hidden", !state.showRawMissions || !state.missionResponse);
         el.missionRaw.textContent = state.missionResponse ? JSON.stringify(state.missionResponse, null, 2) : "";
 
+        renderCloudStatus(authed);
         renderMissions(visibleMissions);
       }
 
@@ -1679,6 +1912,59 @@
         }
       });
 
+      el.cloudKeyInput.addEventListener("input", render);
+
+      el.saveCloudKeyBtn.addEventListener("click", () => {
+        try {
+          saveCloudAdminKey();
+        } catch (error) {
+          setMessage(error.message || String(error), "error");
+          addLog(error.message || String(error), "error");
+        }
+      });
+
+      el.syncCloudAuthBtn.addEventListener("click", async () => {
+        if (state.busy) return;
+        setBusy(true);
+        try {
+          await syncCloudAuth();
+          setMessage("云端登录态已同步", "ok");
+        } catch (error) {
+          setMessage(error.message || String(error), "error");
+          addLog(error.message || String(error), "error");
+        } finally {
+          setBusy(false);
+        }
+      });
+
+      el.cloudStatusBtn.addEventListener("click", async () => {
+        if (state.busy) return;
+        setBusy(true);
+        try {
+          await refreshCloudStatus();
+          setMessage("云端状态已刷新", "ok");
+        } catch (error) {
+          setMessage(error.message || String(error), "error");
+          addLog(error.message || String(error), "error");
+        } finally {
+          setBusy(false);
+        }
+      });
+
+      el.cloudRunBtn.addEventListener("click", async () => {
+        if (state.busy) return;
+        setBusy(true);
+        try {
+          await runCloudNow();
+          setMessage("云端运行完成", "ok");
+        } catch (error) {
+          setMessage(error.message || String(error), "error");
+          addLog(error.message || String(error), "error");
+        } finally {
+          setBusy(false);
+        }
+      });
+
       el.logoutBtn.addEventListener("click", () => {
         clearAuth();
         setMessage("已退出");
@@ -1750,6 +2036,7 @@
       });
 
       restoreAuth();
+      restoreCloudAdminKey();
       render();
       refreshStoragePersistence();
       if (state.token && state.uid) {

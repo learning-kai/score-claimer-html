@@ -1,12 +1,12 @@
 # 积分领取 HTML 工具
 
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Version](https://img.shields.io/badge/version-0.4.0-blue)
+![Version](https://img.shields.io/badge/version-0.5.0-blue)
 ![Platform](https://img.shields.io/badge/platform-static%20HTML-orange)
 
 [English](README.md)
 
-一个单文件静态 HTML 工具，用浏览器完成登录、保存登录态，并一键领取可直领积分任务。
+一个单文件静态 HTML 工具，用浏览器完成登录、保存登录态、一键领取可直领积分任务，也可把登录态同步到 Cloudflare Worker 做每天定时领取。
 
 > 非官方第三方工具，仅用于个人学习和自动化实验。它与上游服务提供方没有从属、合作、认证或背书关系。
 
@@ -30,6 +30,8 @@
 - H5 任务不会显示在领取列表里。
 - 同一轮一键领取中，每个 `refId` 最多尝试一次。
 - `code == -98` 时，当前任务最多重试三次。
+- 可选 Cloudflare Worker 云端定时领取。
+- 页面支持同步云端登录态、查看云端状态和立即云端运行一次。
 
 ## 截图与演示
 
@@ -63,6 +65,7 @@ GitHub Pages 发布：
 - 不包含真实账号、token 或密钥。
 - 页面通过浏览器 `fetch` 直接访问上游 API。
 - 领取逻辑是串行执行，并带间隔和限流重试。
+- 云端定时领取由 Worker Cron Trigger 执行，不依赖本地电脑。
 
 ## 项目文档
 
@@ -78,13 +81,15 @@ GitHub Pages 发布：
 
 登录态只属于同一个浏览器配置和同一个发布域名。保持固定的 GitHub Pages 域名，并让浏览器允许持久存储，可以尽量延长本机自动恢复时间。但它挡不住手动清理站点数据、隐私模式清理、更换浏览器、更换域名，或者上游 token 服务端过期。
 
+云端定时领取会把同步后的 `token`、`uid`、`eid` 保存到 Cloudflare KV。页面会把 Worker 的 `ADMIN_KEY` 保存在浏览器 `localStorage`，用于调用 `/auth`、`/status` 和 `/run`。不要把真实 `ADMIN_KEY` 提交到仓库或公开发送。
+
 不要上传真实 token、包含 token 的截图、复制出来的登录 JSON。
 
 短信登录仍然需要手动完成。本项目不绕过图片验证码或短信验证码。
 
 ## 发布与更新
 
-当前独立发布目录版本：`0.4.0`。
+当前独立发布目录版本：`0.5.0`。
 
 `0.2.0` 增加公开使用风险提示、确认勾选、短信冷却、最后刷新时间和一键领取前确认流程。
 
@@ -92,10 +97,10 @@ GitHub Pages 发布：
 
 `0.4.0` 增加登录备份下载和 JSON 备份文件导入，方便浏览器数据丢失后恢复登录态。
 
+`0.5.0` 增加 Cloudflare Worker 定时领取控制：保存管理密钥、同步登录态、查看云端状态和立即运行一次。
+
 ## 路线图
 
-- 可选的 Cloudflare Worker 定时领取版本。
-- 最近一次领取结果状态导出。
 - 登录态过期时给出更清楚的错误提示。
 
 ## 故障排查
