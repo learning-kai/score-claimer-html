@@ -976,14 +976,6 @@
       function remainingForMission(task) {
         const serverRemaining = Number(limitEntryFor(task?.refId)?.limit);
         if (Number.isFinite(serverRemaining) && serverRemaining > 0) return serverRemaining;
-
-        const configuredLimit = Number(task?.limit);
-        const completed = Number(task?.cnt);
-        if (Number.isFinite(configuredLimit) && configuredLimit > 0
-          && Number.isFinite(completed) && completed >= 0) {
-          return Math.max(0, configuredLimit - completed);
-        }
-
         return serverRemaining === 0 ? 0 : null;
       }
 
@@ -993,7 +985,10 @@
 
       function claimAttemptsForMission(task) {
         if (task?.isDaily) return 1;
-        return Math.max(1, remainingForMission(task) ?? 1);
+        const serverRemaining = remainingForMission(task);
+        if (serverRemaining != null) return serverRemaining;
+        const taskLimit = Number(task?.limit);
+        return Number.isFinite(taskLimit) && taskLimit > 0 ? taskLimit : 1;
       }
 
       function currentTaskFor(task) {
@@ -1461,11 +1456,13 @@
 
           const beforeScore = scoreInfo()?.score ?? "0";
           const delaySeconds = Math.max(5, Math.min(30, Number(el.delayInput.value || 10)));
+          const stoppedRefIds = new Set();
 
           addLog(`开始一键领取，${list.length} 个任务共 ${plannedClaims.length} 次，间隔 ${delaySeconds} 秒`);
           for (let i = 0; i < plannedClaims.length; i += 1) {
             const mission = currentTaskFor(plannedClaims[i]);
             const refId = mission.refId || "";
+            if (stoppedRefIds.has(refId)) continue;
             if ((!mission.isDaily && isMissionExhausted(mission)) || (mission.isDaily && isDailyClaimed())) {
               addLog(`${mission.name || mission.refId} 已用完，跳过`);
               continue;
@@ -1477,6 +1474,7 @@
               addLog(`${mission.name || mission.refId} 领取成功`, "ok");
               await loadMissions({ silent: true });
             } else {
+              stoppedRefIds.add(refId);
               addLog(`${mission.name || mission.refId} 领取失败`, "error");
             }
             if (i < plannedClaims.length - 1) {
