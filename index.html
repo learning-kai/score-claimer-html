@@ -991,6 +991,16 @@
         return remainingForMission(task) === 0;
       }
 
+      function claimAttemptsForMission(task) {
+        if (task?.isDaily) return 1;
+        return Math.max(1, remainingForMission(task) ?? 1);
+      }
+
+      function currentTaskFor(task) {
+        if (task?.isDaily) return dailyCheckInTask() || task;
+        return missions().find((item) => item?.refId === task?.refId) || task;
+      }
+
       function chinaDateKey(timestamp) {
         const value = Number(timestamp);
         if (!Number.isFinite(value) || value <= 0) return "";
@@ -1434,13 +1444,16 @@
           await loadMissions({ silent: true });
 
           const list = claimableMissions();
-          if (!list.length) {
+          const plannedClaims = list.flatMap((mission) => (
+            Array.from({ length: claimAttemptsForMission(mission) }, () => mission)
+          ));
+          if (!plannedClaims.length) {
             addLog("没有可领取任务");
             return;
           }
 
           const names = list.map((item) => item.name || item.refId).join("、");
-          const okToClaim = window.confirm(`本次将尝试领取 ${list.length} 个任务：${names}\n\n每个任务本轮只尝试一次，确认继续？`);
+          const okToClaim = window.confirm(`本次将尝试领取 ${list.length} 个任务，共 ${plannedClaims.length} 次：${names}\n\n每日签到只领一次，确认继续？`);
           if (!okToClaim) {
             addLog("已取消一键领取");
             return;
@@ -1448,21 +1461,15 @@
 
           const beforeScore = scoreInfo()?.score ?? "0";
           const delaySeconds = Math.max(5, Math.min(30, Number(el.delayInput.value || 10)));
-          const attemptedRefIds = new Set();
 
-          addLog(`开始一键领取，共 ${list.length} 个任务，间隔 ${delaySeconds} 秒`);
-          for (let i = 0; i < list.length; i += 1) {
-            const mission = list[i];
+          addLog(`开始一键领取，${list.length} 个任务共 ${plannedClaims.length} 次，间隔 ${delaySeconds} 秒`);
+          for (let i = 0; i < plannedClaims.length; i += 1) {
+            const mission = currentTaskFor(plannedClaims[i]);
             const refId = mission.refId || "";
-            if (attemptedRefIds.has(refId)) {
-              addLog(`${mission.name || refId} 本轮已尝试过，跳过`);
-              continue;
-            }
             if ((!mission.isDaily && isMissionExhausted(mission)) || (mission.isDaily && isDailyClaimed())) {
               addLog(`${mission.name || mission.refId} 已用完，跳过`);
               continue;
             }
-            attemptedRefIds.add(refId);
             addLog(`领取 ${mission.name || mission.refId} +${mission.score}`);
             const ok = await claimMission(mission, { silent: true });
             if (ok) {
@@ -1472,7 +1479,7 @@
             } else {
               addLog(`${mission.name || mission.refId} 领取失败`, "error");
             }
-            if (i < list.length - 1) {
+            if (i < plannedClaims.length - 1) {
               await sleep(delaySeconds * 1000);
             }
           }
