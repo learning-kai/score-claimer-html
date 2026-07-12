@@ -925,35 +925,8 @@
           .filter((item) => !isH5Task(item) && !isExcludedTask(item));
       }
 
-      function dailyCheckInTask() {
-        const dailyRsp = state.missionData?.dailyRSP;
-        const score = Number(dailyRsp?.score || 0);
-        const refId = dailyRsp?.adId || "DAILY_CHECK_IN";
-        if (!dailyRsp || !refId || score <= 0) return null;
-        return {
-          refId,
-          name: "每日签到",
-          desc: `签到领取 ${score} 积分`,
-          score,
-          isDaily: true
-        };
-      }
-
-      function isDailyClaimed() {
-        const lastTime = Number(scoreInfo()?.daily?.ltime || 0);
-        const serverTime = Number(state.serverTs || Date.now());
-        return Boolean(lastTime) && chinaDateKey(lastTime) === chinaDateKey(serverTime);
-      }
-
-      function dailyRemaining() {
-        const task = dailyCheckInTask();
-        return task && !isDailyClaimed() ? 1 : 0;
-      }
-
       function visibleTasks() {
-        const daily = dailyCheckInTask();
-        const list = missions();
-        return daily ? [daily, ...list] : list;
+        return missions();
       }
 
       function canDirectClaim(task) {
@@ -984,7 +957,6 @@
       }
 
       function claimAttemptsForMission(task) {
-        if (task?.isDaily) return 1;
         const serverRemaining = remainingForMission(task);
         if (serverRemaining != null) return serverRemaining;
         const taskLimit = Number(task?.limit);
@@ -992,33 +964,13 @@
       }
 
       function currentTaskFor(task) {
-        if (task?.isDaily) return dailyCheckInTask() || task;
         return missions().find((item) => item?.refId === task?.refId) || task;
-      }
-
-      function chinaDateKey(timestamp) {
-        const value = Number(timestamp);
-        if (!Number.isFinite(value) || value <= 0) return "";
-        const parts = new Intl.DateTimeFormat("en-US", {
-          timeZone: "Asia/Shanghai",
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit"
-        }).formatToParts(new Date(value));
-        const fields = Object.fromEntries(
-          parts
-            .filter((part) => part.type !== "literal")
-            .map((part) => [part.type, part.value])
-        );
-        return `${fields.year}-${fields.month}-${fields.day}`;
       }
 
       function claimableMissions() {
         return visibleTasks().filter((item) => {
           if (!canDirectClaim(item)) return false;
-          if (!item.isDaily && isMissionExhausted(item)) return false;
-          if (item.isDaily && isDailyClaimed()) return false;
-          return true;
+          return !isMissionExhausted(item);
         });
       }
 
@@ -1411,9 +1363,6 @@
         for (let attempt = 0; attempt < 3; attempt += 1) {
           const data = await sendScore(mission);
           if (data?.code === 0) {
-            if (!silent) {
-              addLog(`${mission.name || mission.refId} 领取成功 +${mission.score}`, "ok");
-            }
             return true;
           }
           if (data?.code === -98 && attempt < 2) {
@@ -1448,7 +1397,7 @@
           }
 
           const names = list.map((item) => item.name || item.refId).join("、");
-          const okToClaim = window.confirm(`本次将尝试领取 ${list.length} 个任务，共 ${plannedClaims.length} 次：${names}\n\n每日签到只领一次，确认继续？`);
+          const okToClaim = window.confirm(`本次将尝试领取 ${list.length} 个任务，共 ${plannedClaims.length} 次：${names}\n\n确认继续？`);
           if (!okToClaim) {
             addLog("已取消一键领取");
             return;
@@ -1463,16 +1412,16 @@
             const mission = currentTaskFor(plannedClaims[i]);
             const refId = mission.refId || "";
             if (stoppedRefIds.has(refId)) continue;
-            if ((!mission.isDaily && isMissionExhausted(mission)) || (mission.isDaily && isDailyClaimed())) {
+            if (isMissionExhausted(mission)) {
               addLog(`${mission.name || mission.refId} 已用完，跳过`);
               continue;
             }
             addLog(`领取 ${mission.name || mission.refId} +${mission.score}`);
             const ok = await claimMission(mission, { silent: true });
             if (ok) {
+              await loadMissions({ silent: true });
               claimed += 1;
               addLog(`${mission.name || mission.refId} 领取成功`, "ok");
-              await loadMissions({ silent: true });
             } else {
               stoppedRefIds.add(refId);
               addLog(`${mission.name || mission.refId} 领取失败`, "error");
@@ -1607,10 +1556,9 @@
           const name = mission.name || "未知任务";
           const desc = mission.desc || "";
           const score = Number(mission.score || 0);
-          const isDaily = mission.isDaily === true;
           const directClaim = canDirectClaim(mission);
-          const isExhausted = isDaily ? isDailyClaimed() : isMissionExhausted(mission);
-          const remaining = isDaily ? dailyRemaining() : remainingForMission(mission);
+          const isExhausted = isMissionExhausted(mission);
+          const remaining = remainingForMission(mission);
           const statusText = !directClaim
             ? "不可直领"
             : (isExhausted ? "已领完" : (remaining == null ? "次数未知" : `可领 ${remaining} 次`));
@@ -1623,7 +1571,6 @@
                 <p>${escapeHtml(desc)}</p>
                 <div class="mission-meta">
                   <span class="tag ${score > 0 ? "ok" : "muted"}">${score > 0 ? `+${score}` : "无直领奖励"}</span>
-                  ${isDaily ? '<span class="tag">签到</span>' : ''}
                   <span class="tag ${directClaim && !isExhausted ? "warn" : "muted"}">${statusText}</span>
                   <span class="tag muted">${escapeHtml(refId)}</span>
                 </div>
@@ -2043,6 +1990,7 @@
           const ok = await claimMission(mission);
           if (ok) {
             await loadMissions({ silent: true });
+            addLog(`${mission.name || mission.refId} 领取成功 +${mission.score}`, "ok");
           }
         } catch (error) {
           addLog(error.message || String(error), "error");
